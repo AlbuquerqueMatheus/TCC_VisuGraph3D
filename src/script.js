@@ -1,6 +1,29 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import gsap from 'gsap'
+import GUI from 'lil-gui'
+
+/**
+ * Debug
+ */
+const gui = new GUI({
+    width: 300,
+    title: 'Debug',
+    closeFolders: true,
+
+})
+
+gui.hide()
+window.addEventListener('keydown', (event) =>
+{
+    if (event.key === 'd')
+    {
+        gui.show(gui._hidden)
+    }
+})
+
+const debugObject = {}
 
 /**
  * Base
@@ -14,13 +37,49 @@ const scene = new THREE.Scene()
 /**
  * Object
  */
+debugObject.color = 0xff0000
+
 const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2)
-const material = new THREE.MeshBasicMaterial({ 
-    color: 0xff0000,
-    wireframe: true 
-})
+const material = new THREE.MeshBasicMaterial({color: debugObject.color, wireframe: true})
 const mesh = new THREE.Mesh(geometry, material)
 scene.add(mesh)
+
+const cubeTweaks = gui.addFolder('Awesome Cube')
+
+cubeTweaks.add(mesh.position, 'y', -3, 3, 0.01).min(-3).max(3).step(0.01).name('elevation')
+cubeTweaks.add(mesh.position, 'x', -3, 3, 0.01).min(-3).max(3).step(0.01).name('longitude')
+cubeTweaks.add(mesh.position, 'z', -3, 3, 0.01).min(-3).max(3).step(0.01).name('latitude')
+
+cubeTweaks.add(mesh, 'visible')
+cubeTweaks.add(material, 'wireframe')
+
+cubeTweaks
+    .addColor(debugObject, 'color')
+    .onChange((value) =>
+    {
+        material.color.set(debugObject.color)
+    })
+debugObject.subdivisions = 2
+
+cubeTweaks
+    .add(debugObject, 'subdivisions')
+    .min(1)
+    .max(5)
+    .step(1)
+    .onChange(() =>
+    {
+        mesh.geometry.dispose()
+        mesh.geometry = new THREE.BoxGeometry(
+        1, 1, 1, 
+        debugObject.subdivisions, debugObject.subdivisions, debugObject.subdivisions
+    )
+    })
+
+debugObject.spin = () =>
+{
+    gsap.to(mesh.rotation, { duration: 1, y: mesh.rotation.y + Math.PI * 2 })
+}
+cubeTweaks.add(debugObject, 'spin')
 
 /**
  * Sizes
