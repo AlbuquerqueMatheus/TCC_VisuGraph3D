@@ -4,6 +4,40 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
 import GUI from 'lil-gui'
 
+
+/**
+ * Texture
+ */
+const loadingManager = new THREE.LoadingManager()
+
+loadingManager.onStart = () =>
+{
+    console.log('loading started')
+}
+
+loadingManager.onLoad = () =>   
+{
+    console.log('loading finished')
+}
+
+loadingManager.onProgress = () =>
+{   
+    console.log('loading progressing')
+}
+
+loadingManager.onError = () =>
+{
+    console.log('loading error')
+}
+
+const textureLoader = new THREE.TextureLoader(loadingManager)
+const texture = textureLoader.load('./color.jpg')
+texture.colorSpace = THREE.SRGBColorSpace
+
+texture.generateMipmaps = false
+texture.minFilter = THREE.NearestFilter
+texture.magFilter = THREE.NearestFilter
+
 /**
  * Debug
  */
@@ -40,7 +74,11 @@ const scene = new THREE.Scene()
 debugObject.color = 0xff0000
 
 const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2)
-const material = new THREE.MeshBasicMaterial({color: debugObject.color, wireframe: true})
+// const material = new THREE.MeshBasicMaterial({color: debugObject.color, wireframe: true})
+// const geometry = new THREE.SphereGeometry(0.5, 32, 32)
+// const geometry = new THREE.ConeGeometry(1, 1, 32)
+// const geometry = new THREE.TorusGeometry(0.3, 0.2, 32, 64)
+const material = new THREE.MeshBasicMaterial({ map: texture })
 const mesh = new THREE.Mesh(geometry, material)
 scene.add(mesh)
 
