@@ -4,208 +4,213 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
 import GUI from 'lil-gui'
 
+// Função utilitária para carregar texturas de forma assíncrona
+const loadTextureAsync = (url) => {
+    return new Promise((resolve, reject) => {
+        const loader = new THREE.TextureLoader(loadingManager);
+        loader.load(url, resolve, undefined, reject);
+    });
+};
 
-/**
- * Texture
- */
-const loadingManager = new THREE.LoadingManager()
+// Gerenciamento de Carregamento de Textura
+const loadingManager = new THREE.LoadingManager();
+loadingManager.onStart = () => console.log('loading started');
+loadingManager.onLoad = () => console.log('loading finished');
+loadingManager.onProgress = () => console.log('loading progressing');
+loadingManager.onError = () => console.log('loading error');
 
-loadingManager.onStart = () =>
-{
-    console.log('loading started')
-}
+// Debug
+const gui = new GUI({ width: 300, title: 'Debug', closeFolders: true });
+gui.hide();
+window.addEventListener('keydown', (event) => {
+    if (event.key === 'd') gui._hidden ? gui.show() : gui.hide();
+});
 
-loadingManager.onLoad = () =>   
-{
-    console.log('loading finished')
-}
+// Base - Canvas, Cena e Luzes
+const canvas = document.querySelector('canvas.webgl');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
 
-loadingManager.onProgress = () =>
-{   
-    console.log('loading progressing')
-}
+// Material e Geometria
+const material = new THREE.MeshStandardMaterial({ roughness: 0.5, metalness: 0.5 });
+let geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2);
+const mesh = new THREE.Mesh(geometry, material);
+mesh.castShadow = true;
+mesh.receiveShadow = true;
+scene.add(mesh);
 
-loadingManager.onError = () =>
-{
-    console.log('loading error')
-}
+// Salvando os vértices originais do cubo para restaurar o tamanho quando necessário
+const originalVertices = geometry.attributes.position.array.slice();
 
-const textureLoader = new THREE.TextureLoader(loadingManager)
-const texture = textureLoader.load('./color.jpg')
-texture.colorSpace = THREE.SRGBColorSpace
+// Plano reutilizável
+const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshStandardMaterial({ color: 0x808080 })
+);
+plane.rotation.x = -Math.PI / 2;
+plane.position.y = -1;
+plane.receiveShadow = true;
+scene.add(plane);
 
-texture.generateMipmaps = false
-texture.minFilter = THREE.NearestFilter
-texture.magFilter = THREE.NearestFilter
+// Luzes
+const pointLight = new THREE.PointLight(0xffffff, 1);
+pointLight.position.set(0, 3, 0);
+scene.add(pointLight);
 
-/**
- * Debug
- */
-const gui = new GUI({
-    width: 300,
-    title: 'Debug',
-    closeFolders: true,
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
 
-})
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(5, 5, 5);
+directionalLight.castShadow = true;
+scene.add(directionalLight);
 
-gui.hide()
-window.addEventListener('keydown', (event) =>
-{
-    if (event.key === 'd')
-    {
-        gui.show(gui._hidden)
+// Função para carregar textura de forma assíncrona e aplicar ao material
+let texture = null; // Variável para armazenar a textura
+const initTextures = async () => {
+    try {
+        texture = await loadTextureAsync('./color.jpg');
+        material.map = texture;
+        material.needsUpdate = true;
+    } catch (error) {
+        console.error('Erro ao carregar a textura', error);
     }
-})
+};
+initTextures();
 
-const debugObject = {}
+// Debug Object
+const debugObject = {};
+debugObject.subdivisions = 2;
+debugObject.extrudeAmount = 0; // Valor inicial da extrusão
+debugObject.color = 0xff0000;
+debugObject.textureEnabled = true;
+debugObject.opacity = 1;
+debugObject.renderStyle = 'normal';
+debugObject.shadows = true;
+debugObject.cameraPositionZ = 3;
 
-/**
- * Base
- */
-// Canvas
-const canvas = document.querySelector('canvas.webgl')
+// **Correção aqui**: Definindo a função `spin` corretamente
+debugObject.spin = () => {
+    gsap.to(mesh.rotation, { duration: 1, x: mesh.rotation.x + Math.PI * 2, y: mesh.rotation.y + Math.PI * 2 });
+};
 
-// Scene
-const scene = new THREE.Scene()
+// Organizando a interface em grupos
+const cubePositionFolder = gui.addFolder('Cube Position');
+const cubeAppearanceFolder = gui.addFolder('Cube Appearance');
+const lightsFolder = gui.addFolder('Lights');
+const shadowsFolder = gui.addFolder('Shadows');
+const cameraFolder = gui.addFolder('Camera');
+const animationsFolder = gui.addFolder('Animations');
 
-/**
- * Object
- */
-debugObject.color = 0xff0000
+// Grupo: Cube Position (Posicionamento do Cubo)
+cubePositionFolder.add(mesh.position, 'y', -3, 3, 0.01).name('Elevation');
+cubePositionFolder.add(mesh.position, 'x', -3, 3, 0.01).name('Longitude');
+cubePositionFolder.add(mesh.position, 'z', -3, 3, 0.01).name('Latitude');
+cubePositionFolder.add(mesh, 'visible').name('Visible');
 
-const geometry = new THREE.BoxGeometry(1, 1, 1, 2, 2, 2)
-// const material = new THREE.MeshBasicMaterial({color: debugObject.color, wireframe: true})
-// const geometry = new THREE.SphereGeometry(0.5, 32, 32)
-// const geometry = new THREE.ConeGeometry(1, 1, 32)
-// const geometry = new THREE.TorusGeometry(0.3, 0.2, 32, 64)
-const material = new THREE.MeshBasicMaterial({ map: texture })
-const mesh = new THREE.Mesh(geometry, material)
-scene.add(mesh)
-
-const cubeTweaks = gui.addFolder('Awesome Cube')
-
-cubeTweaks.add(mesh.position, 'y', -3, 3, 0.01).min(-3).max(3).step(0.01).name('elevation')
-cubeTweaks.add(mesh.position, 'x', -3, 3, 0.01).min(-3).max(3).step(0.01).name('longitude')
-cubeTweaks.add(mesh.position, 'z', -3, 3, 0.01).min(-3).max(3).step(0.01).name('latitude')
-
-cubeTweaks.add(mesh, 'visible')
-cubeTweaks.add(material, 'wireframe')
-
-cubeTweaks
-    .addColor(debugObject, 'color')
-    .onChange((value) =>
-    {
-        material.color.set(debugObject.color)
-    })
-debugObject.subdivisions = 2
-
-cubeTweaks
-    .add(debugObject, 'subdivisions')
-    .min(1)
-    .max(5)
-    .step(1)
-    .onChange(() =>
-    {
-        mesh.geometry.dispose()
-        mesh.geometry = new THREE.BoxGeometry(
-        1, 1, 1, 
-        debugObject.subdivisions, debugObject.subdivisions, debugObject.subdivisions
-    )
-    })
-
-debugObject.spin = () =>
-{
-    gsap.to(mesh.rotation, { duration: 1, y: mesh.rotation.y + Math.PI * 2 })
-}
-cubeTweaks.add(debugObject, 'spin')
-
-/**
- * Sizes
- */
-const sizes = {
-    width: window.innerWidth,
-    height: window.innerHeight
-}
-
-window.addEventListener('resize', () =>
-{
-    // Update sizes
-    sizes.width = window.innerWidth
-    sizes.height = window.innerHeight
-
-    // Update camera
-    camera.aspect = sizes.width / sizes.height
-    camera.updateProjectionMatrix()
-
-    // Update renderer
-    renderer.setSize(sizes.width, sizes.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-})
-
-window.addEventListener('dblclick', () =>
-{
-    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement
-    if (!fullscreenElement)
-    {
-        if (canvas.requestFullscreen)
-        {
-            canvas.requestFullscreen()
-        }
-        else if (canvas.webkitRequestFullscreen)
-        {
-            canvas.webkitRequestFullscreen()
-        }
+// Grupo: Cube Appearance (Aparência do Cubo)
+cubeAppearanceFolder.addColor(debugObject, 'color').name('Color').onChange(() => {
+    material.color.set(debugObject.color);
+    material.needsUpdate = true;
+});
+cubeAppearanceFolder.add(debugObject, 'opacity').min(0).max(1).step(0.01).name('Opacity').onChange(() => {
+    material.opacity = debugObject.opacity;
+    material.transparent = debugObject.opacity < 1;
+    material.needsUpdate = true;
+});
+cubeAppearanceFolder.add(debugObject, 'renderStyle', ['normal', 'wireframe', 'flat']).name('Render Style').onChange(() => {
+    material.wireframe = debugObject.renderStyle === 'wireframe';
+    material.flatShading = debugObject.renderStyle === 'flat';
+    material.needsUpdate = true;
+});
+cubeAppearanceFolder.add(debugObject, 'textureEnabled').name('Enable Texture').onChange(() => {
+    if (debugObject.textureEnabled) {
+        material.map = texture;
+    } else {
+        material.map = null;
     }
-    else
-    {
-        if (document.exitFullscreen)
-        {
-            document.exitFullscreen()
-        }
-        else if (document.webkitExitFullscreen)
-        {
-            document.webkitExitFullscreen()
-        }
+    material.needsUpdate = true;
+});
+
+// Grupo: Lights (Luzes)
+lightsFolder.add(ambientLight, 'intensity').min(0).max(2).step(0.01).name('Ambient Light Intensity');
+lightsFolder.add(directionalLight, 'intensity').min(0).max(2).step(0.01).name('Directional Light Intensity');
+lightsFolder.add(directionalLight.position, 'x', -10, 10, 0.1).name('Directional Light X');
+lightsFolder.add(directionalLight.position, 'y', -10, 10, 0.1).name('Directional Light Y');
+lightsFolder.add(directionalLight.position, 'z', -10, 10, 0.1).name('Directional Light Z');
+
+// Grupo: Shadows (Sombras)
+shadowsFolder.add(debugObject, 'shadows').name('Enable Shadows').onChange(() => {
+    mesh.castShadow = debugObject.shadows;
+    plane.receiveShadow = debugObject.shadows;
+});
+
+// Grupo: Camera (Câmera)
+cameraFolder.add(debugObject, 'cameraPositionZ', 1, 10, 0.1).name('Camera Position Z').onChange(() => {
+    camera.position.z = debugObject.cameraPositionZ;
+});
+
+// Grupo: Animations (Animações)
+animationsFolder.add(debugObject, 'spin').name('Spin');
+animationsFolder.add(debugObject, 'subdivisions').min(1).max(5).step(1).name('Subdivisions').onChange(() => {
+    mesh.geometry.dispose();
+    mesh.geometry = new THREE.BoxGeometry(1, 1, 1, debugObject.subdivisions, debugObject.subdivisions, debugObject.subdivisions);
+});
+animationsFolder.add(debugObject, 'extrudeAmount').min(0).max(1).step(0.01).name('Extrude').onChange(() => {
+    const vertices = geometry.attributes.position.array;
+    for (let i = 0; i < vertices.length; i += 3) {
+        const originalX = originalVertices[i];
+        const originalY = originalVertices[i + 1];
+        const originalZ = originalVertices[i + 2];
+
+        vertices[i] = originalX + Math.sign(originalX) * debugObject.extrudeAmount;
+        vertices[i + 1] = originalY + Math.sign(originalY) * debugObject.extrudeAmount;
+        vertices[i + 2] = originalZ + Math.sign(originalZ) * debugObject.extrudeAmount;
     }
-})
+    geometry.attributes.position.needsUpdate = true;
+});
 
-/**
- * Camera
- */
-// Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.z = 3
-scene.add(camera)
+// Camera e Controles
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.z = 3;
+scene.add(camera);
 
-// Controls
-const controls = new OrbitControls(camera, canvas)
-controls.enableDamping = true
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.25;
+controls.maxPolarAngle = Math.PI / 2;
 
-/**
- * Renderer
- */
-const renderer = new THREE.WebGLRenderer({
-    canvas: canvas
-})
-renderer.setSize(sizes.width, sizes.height)
+// Renderer
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+renderer.shadowMap.enabled = true;
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-/**
- * Animate
- */
-const clock = new THREE.Clock()
+// Ajustes na tela cheia
+const toggleFullScreen = () => {
+    const fullscreenElement = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fullscreenElement) {
+        if (canvas.requestFullscreen) canvas.requestFullscreen();
+        else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
+    } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+};
+window.addEventListener('dblclick', toggleFullScreen);
 
-const tick = () =>
-{
-    const elapsedTime = clock.getElapsedTime()
+// Ajustes para redimensionamento da tela
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
 
-    // Update controls
-    controls.update()
-
-    // Render
-    renderer.render(scene, camera)
-
-    // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
-}
-
-tick()
+// Loop de animação
+const tick = () => {
+    controls.update();
+    renderer.render(scene, camera);
+    window.requestAnimationFrame(tick);
+};
+tick();
